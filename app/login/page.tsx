@@ -1,7 +1,7 @@
 "use client";
 
 import { type FormEvent, useState, useTransition } from 'react'
-import { signIn } from '@/app/login/actions' 
+import { signIn } from './actions'
 
 function Logo() {
   return (
@@ -27,7 +27,7 @@ function CheckIcon() {
   )
 }
 
-export default function LoginView() {
+export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
