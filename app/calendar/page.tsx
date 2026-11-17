@@ -55,6 +55,7 @@ export default function CalendarPage() {
     new Date(month.getFullYear(), month.getMonth(), index - firstWeekday + 1),
   );
   const monthLabel = month.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  const todayKey = dateKey(new Date());
 
   useEffect(() => {
     let active = true;
@@ -135,15 +136,23 @@ export default function CalendarPage() {
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">Calendar</h1>
           <p className="mt-2 text-sm text-slate-400 sm:text-base">Your 探店 visits, shoots and posting deadlines</p>
         </div>
-        <div className="flex items-center gap-3">
-          <button type="button" aria-label="Previous month" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}
-            className="flex size-11 items-center justify-center rounded-xl border border-slate-200 bg-white shadow-sm transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-indigo-600">
-            <ChevronLeft size={20} />
-          </button>
-          <h2 aria-live="polite" className="min-w-36 text-center text-base font-medium sm:min-w-40">{monthLabel}</h2>
-          <button type="button" aria-label="Next month" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}
-            className="flex size-11 items-center justify-center rounded-xl border border-slate-200 bg-white shadow-sm transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-indigo-600">
-            <ChevronRight size={20} />
+        <div className="flex flex-wrap items-center justify-end gap-3 px-12">
+          <div className="flex items-center gap-1">
+            <button type="button" aria-label="Previous month" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}
+              className="flex size-10 items-center justify-center rounded-xl border border-slate-200 transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-indigo-600">
+              <ChevronLeft size={18} />
+            </button>
+            <h2 aria-live="polite" className="min-w-32 text-center text-base font-medium">{monthLabel}</h2>
+            <button type="button" aria-label="Next month" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}
+              className="flex size-10 items-center justify-center rounded-xl border border-slate-200 transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-indigo-600">
+              <ChevronRight size={18} />
+            </button>
+          </div>
+          <button type="button" onClick={() => {
+            const today = new Date();
+            setMonth(new Date(today.getFullYear(), today.getMonth(), 1));
+          }} className="h-10 rounded-xl px-3 text-sm font-semibold text-indigo-600 transition hover:bg-indigo-50 focus-visible:outline-2 focus-visible:outline-indigo-600">
+            Today
           </button>
           <button type="button" onClick={() => openEvent(dateKey(month))}
             className="ml-1 inline-flex h-11 items-center gap-2 rounded-xl bg-indigo-600 px-5 font-medium text-white shadow-sm transition hover:bg-indigo-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
@@ -152,7 +161,18 @@ export default function CalendarPage() {
         </div>
       </header>
 
-      <section aria-label={`${monthLabel} collaboration calendar`} className="mx-auto max-w-6xl overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
+      <section 
+        aria-label={`${monthLabel} collaboration calendar`}
+        className="
+          mx-auto w-full
+          max-w-full
+          lg:max-w-[72rem]
+          xl:max-w-[80rem]
+          2xl:max-w-[96rem]
+          overflow-hidden rounded-xl
+          border border-slate-100 bg-white shadow-sm
+        "
+      >
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3 text-sm text-slate-400">
           <div className="flex items-center gap-5">
             <span className="inline-flex items-center gap-2"><span className="size-2.5 rounded-full bg-indigo-400" />Visit / event</span>
@@ -162,13 +182,14 @@ export default function CalendarPage() {
           <span>Click an empty day to add a collaboration</span>
         </div>
         <div className="overflow-x-auto">
-          <div className="min-w-[700px]">
+          <div className="min-w-[700px] lg:min-w-full">
             <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50">
               {weekdays.map((day) => <div key={day} className="px-4 py-3 text-sm text-slate-500">{day}</div>)}
             </div>
             <div className="grid grid-cols-7">
               {days.map((day, index) => {
                 const key = dateKey(day);
+                const isToday = key === todayKey;
                 const outside = day.getMonth() !== month.getMonth();
                 const dayEvents = events.flatMap((event) => [
                   ...(dateKey(new Date(event.visitDate)) === key ? [{ event, kind: "visit" as const }] : []),
@@ -176,15 +197,15 @@ export default function CalendarPage() {
                 ]);
                 const fullDate = day.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
                 return (
-                  <div key={key} className={`relative min-h-[100px] border-slate-100 p-2.5 xl:min-h-[120px] ${index % 7 !== 6 ? "border-r" : ""} ${index < cellCount - 7 ? "border-b" : ""} ${outside ? "bg-slate-50/60 text-slate-400" : "bg-white"}`}>
+                  <div key={key} className={`relative min-h-[120px] border-slate-100 p-2.5 xl:min-h-[120px] ${index % 7 !== 6 ? "border-r" : ""} ${index < cellCount - 7 ? "border-b" : ""} ${isToday ? "bg-indigo-50/70 text-slate-900 ring-2 ring-inset ring-indigo-400" : outside ? "bg-slate-50/60 text-slate-400" : "bg-white"}`}>
                     <button type="button" aria-label={`Add collaboration on ${fullDate}`} onClick={() => openEvent(key)}
                       className="absolute inset-0 transition hover:bg-slate-50/50 focus-visible:z-10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-indigo-600" />
-                    <span className="pointer-events-none relative mb-2 flex size-8 items-center justify-center text-sm">{day.getDate()}</span>
+                    <span className={`pointer-events-none relative mb-2 flex size-8 items-center justify-center rounded-full text-sm ${isToday ? "bg-indigo-600 font-semibold text-white shadow-sm" : ""}`}>{day.getDate()}</span>
                     <div className="relative flex flex-col gap-1.5 pointer-events-none">
                       {dayEvents.map(({ event, kind }) => (
                         <button type="button" key={`${event.id}-${kind}`} title={`${event.name} · ${event.postingType} · ${event.status} · ${eventTime(kind === "visit" ? event.visitDate : event.deadline)}`} onClick={() => openDetails(event, kind)}
                           aria-label={`${event.status === "Posted" ? "Posted" : kind === "visit" ? "Visit" : "Posting deadline"}: ${event.name}, ${fullDate}. View details`}
-                          className={`pointer-events-auto flex w-full items-center gap-1.5 truncate rounded-lg px-2 py-1 text-left text-[9px] font-semibold transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-indigo-600 ${event.status === "Posted" ? "bg-slate-100 text-slate-600" : kind === "visit" ? "bg-[#E3E8FF] text-indigo-700" : "bg-[#FFE1E5] text-rose-700"}`}>
+                          className={`pointer-events-auto flex w-full items-center gap-1.5 truncate rounded-lg px-2 py-1 text-left text-[10px] font-semibold transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-indigo-600 ${event.status === "Posted" ? "bg-slate-100 text-slate-600" : kind === "visit" ? "bg-[#E3E8FF] text-indigo-700" : "bg-[#FFE1E5] text-rose-700"}`}>
                           <span aria-hidden="true" className={`size-2 shrink-0 rounded-full ${event.status === "Posted" ? "bg-slate-400" : kind === "visit" ? "bg-indigo-400" : "bg-rose-400"}`} />
                           <span className="truncate">{event.name}</span>
                         </button>
