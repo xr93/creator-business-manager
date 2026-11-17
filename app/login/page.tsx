@@ -295,7 +295,6 @@ export default function LoginPage() {
             {[
               ['Calendar', 'Never miss a deadline'],
               ['Invoices', 'Get paid professionally'],
-              ['Income', 'Track every payment'],
             ].map(([title, detail]) => (
               <div key={title}>
                 <div className="text-xs font-semibold text-white">{title}</div>

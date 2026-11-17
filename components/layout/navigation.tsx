@@ -27,11 +27,6 @@ const IcoInvoices = () => (
     <line x1="9" y1="13" x2="15" y2="13" /><line x1="9" y1="17" x2="15" y2="17" />
   </svg>
 )
-const IcoIncome = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-  </svg>
-)
 const IcoSettings = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="3" />
@@ -44,7 +39,6 @@ export const navigationItems = [
   { href: '/calendar',       label: 'Calendar',       icon: <IcoCalendar /> },
   { href: '/collaborations', label: 'Collabs',        icon: <IcoCollabs /> },
   { href: '/invoices',       label: 'Invoices',       icon: <IcoInvoices /> },
-  { href: '/income',         label: 'Income',         icon: <IcoIncome /> },
   { href: '/settings',       label: 'Settings',       icon: <IcoSettings /> },
 ]
 

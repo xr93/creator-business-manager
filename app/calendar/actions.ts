@@ -7,10 +7,12 @@ import { createClient } from "@/utils/supabase/server";
 export type Collaboration = {
   id: string;
   name: string;
+  description: string;
   postingType: "Photo" | "Video";
   status: "Scheduled" | "Posted";
   visitDate: string;
-  deadline: string;
+  visitEnd: string;
+  deadline: string | null;
   payment: number;
 };
 
@@ -19,10 +21,12 @@ export type CollaborationInput = Omit<Collaboration, "id"> & { id?: string };
 type CollaborationRow = {
   id: string;
   name: string;
+  description: string | null;
   posting_type: string[];
   status: string;
   visit_date: string;
-  deadline: string;
+  visit_end: string;
+  deadline: string | null;
   payment: number | string;
 };
 
@@ -56,9 +60,11 @@ function toCollaboration(row: CollaborationRow): Collaboration {
   return {
     id: row.id,
     name: row.name,
+    description: row.description ?? "",
     postingType: row.posting_type.includes("Video") ? "Video" : "Photo",
     status: row.status === "Posted" ? "Posted" : "Scheduled",
     visitDate: row.visit_date,
+    visitEnd: row.visit_end,
     deadline: row.deadline,
     payment: Number(row.payment),
   };
@@ -79,7 +85,7 @@ export async function getCollaborations(): Promise<{
     const { supabase, user } = await authenticatedClient();
     const { data, error } = await supabase
       .from("collaborations")
-      .select("id, name, posting_type, status, visit_date, deadline, payment")
+      .select("id, name, description, posting_type, status, visit_date, visit_end, deadline, payment")
       .eq("user_id", user.id)
       .order("visit_date", { ascending: true });
 
@@ -87,7 +93,7 @@ export async function getCollaborations(): Promise<{
     return { data: (data as CollaborationRow[]).map(toCollaboration), error: null };
   } catch (error) {
     console.error("Failed to load collaborations", error);
-    return { data: [], error: "Could not load collaborations." };
+    return { data: [], error: databaseErrorMessage(error) };
   }
 }
 
@@ -98,12 +104,18 @@ export async function saveCollaboration(input: CollaborationInput): Promise<{
   try {
     const name = input.name.trim();
     if (!name) return { data: null, error: "Enter a campaign or job name." };
+    const description = input.description.trim();
+    if (description.length > 1000) return { data: null, error: "Description must be 1,000 characters or fewer." };
     const visitTime = Date.parse(input.visitDate);
-    const deadlineTime = Date.parse(input.deadline);
-    if (!Number.isFinite(visitTime) || !Number.isFinite(deadlineTime)) {
-      return { data: null, error: "Enter a valid visit time and content deadline." };
+    const visitEndTime = Date.parse(input.visitEnd);
+    const deadlineTime = input.deadline ? Date.parse(input.deadline) : null;
+    if (!Number.isFinite(visitTime) || !Number.isFinite(visitEndTime) || (deadlineTime !== null && !Number.isFinite(deadlineTime))) {
+      return { data: null, error: "Enter a valid visit time range and content deadline." };
     }
-    if (deadlineTime < visitTime) {
+    if (visitEndTime <= visitTime) {
+      return { data: null, error: "Visit end time must be after the start time." };
+    }
+    if (deadlineTime !== null && deadlineTime < visitTime) {
       return { data: null, error: "Content deadline cannot be before the visit time." };
     }
     if (!Number.isFinite(input.payment) || input.payment < 0) {
@@ -113,10 +125,12 @@ export async function saveCollaboration(input: CollaborationInput): Promise<{
     const { supabase, user } = await authenticatedClient();
     const values = {
       name,
+      description: description || null,
       posting_type: [input.postingType],
       status: input.status,
       visit_date: new Date(visitTime).toISOString(),
-      deadline: new Date(deadlineTime).toISOString(),
+      visit_end: new Date(visitEndTime).toISOString(),
+      deadline: deadlineTime === null ? null : new Date(deadlineTime).toISOString(),
       payment: input.payment,
       user_id: user.id,
     };
@@ -125,12 +139,14 @@ export async function saveCollaboration(input: CollaborationInput): Promise<{
       ? supabase.from("collaborations").update(values).eq("id", input.id).eq("user_id", user.id)
       : supabase.from("collaborations").insert(values);
     const { data, error } = await query
-      .select("id, name, posting_type, status, visit_date, deadline, payment")
+      .select("id, name, description, posting_type, status, visit_date, visit_end, deadline, payment")
       .single();
 
     if (error) throw error;
     revalidatePath("/");
     revalidatePath("/calendar");
+    revalidatePath("/collaborations");
+    revalidatePath("/invoices");
     return { data: toCollaboration(data as CollaborationRow), error: null };
   } catch (error) {
     console.error("Failed to save collaboration", error);
@@ -150,6 +166,8 @@ export async function deleteCollaboration(id: string): Promise<{ error: string |
     if (error) throw error;
     revalidatePath("/");
     revalidatePath("/calendar");
+    revalidatePath("/collaborations");
+    revalidatePath("/invoices");
     return { error: null };
   } catch (error) {
     console.error("Failed to delete collaboration", error);

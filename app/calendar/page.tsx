@@ -27,6 +27,10 @@ function eventTime(value: string) {
   return new Date(value).toLocaleTimeString("en-MY", { hour: "2-digit", minute: "2-digit" });
 }
 
+function eventTimeRange(start: string, end: string) {
+  return `${eventTime(start)}–${eventTime(end)}`;
+}
+
 function eventDateTime(value: string) {
   return new Date(value).toLocaleString("en-MY", {
     day: "numeric",
@@ -105,13 +109,21 @@ export default function CalendarPage() {
   function saveEvent(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
+    const deadlineDate = String(data.get("deadlineDate") ?? "");
+    const deadlineTime = String(data.get("deadlineTime") ?? "");
+    if (Boolean(deadlineDate) !== Boolean(deadlineTime)) {
+      setMessage("Enter both the content deadline date and time, or leave both blank.");
+      return;
+    }
     const input = {
       ...(editing ? { id: editing.id } : {}),
       name: String(data.get("name") ?? "").trim(),
+      description: String(data.get("description") ?? "").trim(),
       postingType: data.get("postingType") === "Video" ? "Video" as const : "Photo" as const,
       status: data.get("status") === "Posted" ? "Posted" as const : "Scheduled" as const,
       visitDate: new Date(`${String(data.get("visitDate"))}T${String(data.get("visitTime"))}`).toISOString(),
-      deadline: new Date(`${String(data.get("deadlineDate"))}T${String(data.get("deadlineTime"))}`).toISOString(),
+      visitEnd: new Date(`${String(data.get("visitDate"))}T${String(data.get("visitEndTime"))}`).toISOString(),
+      deadline: deadlineDate && deadlineTime ? new Date(`${deadlineDate}T${deadlineTime}`).toISOString() : null,
       payment: Number(data.get("payment") ?? 0),
     };
     setMessage("");
@@ -193,7 +205,7 @@ export default function CalendarPage() {
                 const outside = day.getMonth() !== month.getMonth();
                 const dayEvents = events.flatMap((event) => [
                   ...(dateKey(new Date(event.visitDate)) === key ? [{ event, kind: "visit" as const }] : []),
-                  ...(dateKey(new Date(event.deadline)) === key ? [{ event, kind: "deadline" as const }] : []),
+                  ...(event.deadline && dateKey(new Date(event.deadline)) === key ? [{ event, kind: "deadline" as const }] : []),
                 ]);
                 const fullDate = day.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
                 return (
@@ -203,7 +215,7 @@ export default function CalendarPage() {
                     <span className={`pointer-events-none relative mb-2 flex size-8 items-center justify-center rounded-full text-sm ${isToday ? "bg-indigo-600 font-semibold text-white shadow-sm" : ""}`}>{day.getDate()}</span>
                     <div className="relative flex flex-col gap-1.5 pointer-events-none">
                       {dayEvents.map(({ event, kind }) => (
-                        <button type="button" key={`${event.id}-${kind}`} title={`${event.name} · ${event.postingType} · ${event.status} · ${eventTime(kind === "visit" ? event.visitDate : event.deadline)}`} onClick={() => openDetails(event, kind)}
+                        <button type="button" key={`${event.id}-${kind}`} title={`${event.name} · ${event.postingType} · ${event.status} · ${kind === "visit" ? eventTimeRange(event.visitDate, event.visitEnd) : event.deadline ? eventTime(event.deadline) : "Deadline not set"}`} onClick={() => openDetails(event, kind)}
                           aria-label={`${event.status === "Posted" ? "Posted" : kind === "visit" ? "Visit" : "Posting deadline"}: ${event.name}, ${fullDate}. View details`}
                           className={`pointer-events-auto flex w-full items-center gap-1.5 truncate rounded-lg px-2 py-1 text-left text-[10px] font-semibold transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-indigo-600 ${event.status === "Posted" ? "bg-slate-100 text-slate-600" : kind === "visit" ? "bg-[#E3E8FF] text-indigo-700" : "bg-[#FFE1E5] text-rose-700"}`}>
                           <span aria-hidden="true" className={`size-2 shrink-0 rounded-full ${event.status === "Posted" ? "bg-slate-400" : kind === "visit" ? "bg-indigo-400" : "bg-rose-400"}`} />
@@ -241,10 +253,12 @@ export default function CalendarPage() {
             </div>
 
             <div className="mt-7 space-y-4 text-sm sm:text-base">
-              <div className="flex items-center gap-3"><CalendarDays className="shrink-0 text-indigo-500" size={21} /><span className="text-slate-500">Visit:</span><strong className="font-semibold text-slate-800">{eventDateTime(viewing.event.visitDate)}</strong></div>
-              <div className="flex items-center gap-3"><Clock3 className="shrink-0 text-rose-500" size={21} /><span className="text-slate-500">Deadline:</span><strong className="font-semibold text-slate-800">{eventDateTime(viewing.event.deadline)}</strong></div>
+              <div className="flex items-center gap-3"><CalendarDays className="shrink-0 text-indigo-500" size={21} /><span className="text-slate-500">Visit:</span><strong className="font-semibold text-slate-800">{new Date(viewing.event.visitDate).toLocaleDateString("en-MY", { day: "numeric", month: "short", year: "numeric" })}, {eventTimeRange(viewing.event.visitDate, viewing.event.visitEnd)}</strong></div>
+              <div className="flex items-center gap-3"><Clock3 className="shrink-0 text-rose-500" size={21} /><span className="text-slate-500">Deadline:</span><strong className="font-semibold text-slate-800">{viewing.event.deadline ? eventDateTime(viewing.event.deadline) : "Not set"}</strong></div>
               <div className="flex items-center gap-3"><Banknote className="shrink-0 text-emerald-500" size={21} /><span className="text-slate-500">Fee:</span><strong className="font-semibold text-slate-800">RM {viewing.event.payment.toLocaleString("en-MY")}</strong></div>
             </div>
+
+            {viewing.event.description && <p className="mt-6 whitespace-pre-wrap rounded-xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">{viewing.event.description}</p>}
 
             <div className="mt-8 flex items-center gap-3">
               <button type="button" onClick={editViewedEvent} className="flex-1 rounded-xl bg-indigo-600 px-5 py-3 text-base font-semibold text-white shadow-sm transition hover:bg-indigo-700">Edit</button>
@@ -277,24 +291,30 @@ export default function CalendarPage() {
               </select>
             </label>
           </div>
+          <label className="block text-sm font-medium">Visit date
+            <input name="visitDate" type="date" required defaultValue={editing ? inputDate(editing.visitDate) : selectedDate} className="mt-1.5 w-full rounded-lg border border-slate-200 p-2.5 outline-indigo-600" />
+          </label>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <label className="block text-sm font-medium">Visit date
-              <input name="visitDate" type="date" required defaultValue={editing ? inputDate(editing.visitDate) : selectedDate} className="mt-1.5 w-full rounded-lg border border-slate-200 p-2.5 outline-indigo-600" />
+            <label className="block text-sm font-medium">Visit start time
+              <input name="visitTime" type="time" required defaultValue={editing ? inputTime(editing.visitDate) : "14:00"} className="mt-1.5 w-full rounded-lg border border-slate-200 p-2.5 outline-indigo-600" />
             </label>
-            <label className="block text-sm font-medium">Visit time
-              <input name="visitTime" type="time" required defaultValue={editing ? inputTime(editing.visitDate) : "09:00"} className="mt-1.5 w-full rounded-lg border border-slate-200 p-2.5 outline-indigo-600" />
+            <label className="block text-sm font-medium">Visit end time
+              <input name="visitEndTime" type="time" required defaultValue={editing ? inputTime(editing.visitEnd) : "17:00"} className="mt-1.5 w-full rounded-lg border border-slate-200 p-2.5 outline-indigo-600" />
             </label>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <label className="block text-sm font-medium">Content deadline
-              <input name="deadlineDate" type="date" required defaultValue={editing ? inputDate(editing.deadline) : selectedDate} className="mt-1.5 w-full rounded-lg border border-slate-200 p-2.5 outline-indigo-600" />
+            <label className="block text-sm font-medium">Content deadline <span className="font-normal text-slate-400">(optional)</span>
+              <input name="deadlineDate" type="date" defaultValue={editing?.deadline ? inputDate(editing.deadline) : ""} className="mt-1.5 w-full rounded-lg border border-slate-200 p-2.5 outline-indigo-600" />
             </label>
-            <label className="block text-sm font-medium">Deadline time
-              <input name="deadlineTime" type="time" required defaultValue={editing ? inputTime(editing.deadline) : "18:00"} className="mt-1.5 w-full rounded-lg border border-slate-200 p-2.5 outline-indigo-600" />
+            <label className="block text-sm font-medium">Deadline time <span className="font-normal text-slate-400">(optional)</span>
+              <input name="deadlineTime" type="time" defaultValue={editing?.deadline ? inputTime(editing.deadline) : ""} className="mt-1.5 w-full rounded-lg border border-slate-200 p-2.5 outline-indigo-600" />
             </label>
           </div>
           <label className="block text-sm font-medium">Payment (RM)
             <input name="payment" type="number" required defaultValue={editing?.payment ?? 0} className="mt-1.5 w-full rounded-lg border border-slate-200 p-2.5 outline-indigo-600" />
+          </label>
+          <label className="block text-sm font-medium">Description / comments <span className="font-normal text-slate-400">(optional)</span>
+            <textarea name="description" maxLength={1000} rows={3} defaultValue={editing?.description ?? ""} placeholder="Add campaign details, deliverables, or reminders" className="mt-1.5 w-full resize-y rounded-lg border border-slate-200 p-2.5 outline-indigo-600" />
           </label>
           {message && <p role="alert" className="text-xs text-rose-600">{message}</p>}
           <div className="flex justify-end gap-2 pt-2">
